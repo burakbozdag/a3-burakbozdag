@@ -6,6 +6,7 @@
 #####################################################################
 
 from csv import reader
+from bottle import *
 
 contents = []
 input_file = open("a2_input.csv", "r")
@@ -13,7 +14,7 @@ for row in reader(input_file):
 	contents = contents + [row]
 
 import bottle
-from bottle import route, run, Response, default_app, debug, template, get, post, request
+from bottle import route, run, Response, default_app, debug, template, get, post, request, static_file
 
 
 def htmlify(title,text):
@@ -22,15 +23,26 @@ def htmlify(title,text):
         <html lang="en">
             <head>
                 <meta charset="utf-8" />
+                <link rel="stylesheet" href="styling.css" type="text/css">
                 <title>%s</title>
             </head>
-            <body>
+            <body class="bodyy">
             %s
             </body>
         </html>
     """ % (title,text)
     return page
     
+    
+@get('/<filename:re:.*\.css>')
+def static_stylesheets(filename):
+	return static_file(filename, root='./')
+	
+@get('/<filename:re:.*\.png>')
+def static_image(filename):
+	return static_file(filename, root='./', mimetype='image/png')
+
+
 @route('/csv', 'POST')
 def contents_file():
 	data = """"""
@@ -60,14 +72,13 @@ def contents_file():
 
 def form_of_site():
 	site_form = """
-				<form action="/search" method="POST">
+				<form class="forms" action="/search" method="POST" target="_blank">
 					<fieldset>
-						<legend>Search menu:</legend>
-						Search by country name:<br>
-						<input type="text" name="country_name" value=""><br><br>
-						or<br><br>
-						Search by country code:<br>
-						<input type="text" name="country_code" value=""><br><br>
+						<legend>Search menu</legend>
+						Search:<br>
+						<input type="text" name="country_value" value="Turkey"><br><br>
+						<input type="radio" name="country_type" value="name" checked>Search by country name<br>
+						<input type="radio" name="country_type" value="code">Search by country code<br><br>
 						<input type="submit" value="Search"><br>
 					</fieldset>
 				</form>
@@ -76,24 +87,38 @@ def form_of_site():
 	
 @route('/search', 'POST')
 def searching():
-	country_name = request.forms.get('country_name')
-	country_code = request.forms.get('country_code')
+	country_value = request.forms.get('country_value')
+	country_type = request.forms.get('country_type')
 	row_data = """"""
-	if str(country_name) != "":
+	counter_if = 0
+	if str(country_type) == "name":
 		for i in range(1,52):
-			if str(contents[i][0]).casefold() == str(country_name).casefold():
+			if str(contents[i][0]).casefold() == str(country_value).casefold():
+				counter_if = 1
 				for j in range(0,7):
 					row_data += '\t\t\t\t\t\t<td>'+str(contents[i][j])+'</td>\n'
 				break
 	
-	if str(country_code) != "":
+	if str(country_type) == "code":
 		for i in range(1,52):
-			if str(contents[i][1]).casefold() == str(country_code).casefold():
+			if str(contents[i][1]).casefold() == str(country_value).casefold():
+				counter_if = 1
 				for j in range(0,7):
 					row_data += '\t\t\t\t\t\t<td>'+str(contents[i][j])+'</td>\n'
 				break
+				
+	if counter_if == 0:
+		return htmlify("404 NOT FOUND", 
+						"""
+							<div>
+								<h1>ERROR 404: SEARCH RESULT NOT FOUND!</h1>
+								<h2>Please enter a valid value and try again.</h2>
+								<h3>(The search engine is not case-sensitive.)</h3>
+							</div>
+						""")
 	
 	country_row = """
+				<h2 class="search">Search results:</h2>
 				<table>
 					<tr>
 						<th>Country Name</th>
@@ -107,16 +132,40 @@ def searching():
 %s
 				</table>
 	""" % (row_data)
-	return htmlify("Search result", str(country_row))
+	return htmlify("Search results", str(country_row))
 
+### CURRENTLY MODIFYING ###
+#@route('/sort', 'POST')
+#def sorting():
+#	sort_type = request.forms.get('sort_type')
+#	if str(sort_type) == "ascending"
+
+
+#	<form class="forms" action="/sort" method="POST" target="_blank">
+#					<fieldset>
+#						<legend>Sort menu</legend>
+#						Sort in:<br>
+#						<select required>
+#							<option name="sort_type" value="ascending">Ascending</option>
+#							<option name="sort_type" value="descending">Descending</option>
+#						</select>order<br><br>
+#						<input type="submit" value="Sort">
+#					</fieldset>
+#				</form>
+###
 
 @route ('/')
 def index():
 	return htmlify("Internet usage percentages in countries", 
+					"""
+						<div class="header">
+							<h1>Internet Usage Percentages in Countries</h1>
+						</div>
+					""" + 
 					str(form_of_site()) + 
 					"""
 						<br>
-						<form action="/csv" method="POST" target="_blank">
+						<form class="csv" action="/csv" method="POST" target="_blank">
 							<input type="submit" value="Show the csv file">
 						</form>
 					""")
